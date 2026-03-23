@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Skin {
+  id              String             @id @default(cuid())
+  name            String
+  weapon          String
+  collection      String
+  rarity          String
+  minFloat        Float
+  maxFloat        Float
+  floatRequiredMin Float?   // Minimalny input float wymagany do trafienia FN/MW/etc
+  floatRequiredMax Float?   // Maksymalny input float do trafienia w konkretny wear
+  notes           String?  // Notatki np. "warto robic na FN pod kontrakt z X"
+  marketData      MarketData[]
+  blueprintsTarget TradeUpBlueprint[] @relation("TargetSkin")
+  simulationsTarget  TradeUpSimulation[] @relation("TargetSim")
+  simulationsInput   TradeUpSimulation[] @relation("InputSim")
+}
+
+model MarketData {
+  id              String   @id @default(cuid())
+  skinId          String
+  skin            Skin     @relation(fields: [skinId], references: [id])
+  condition       String   // "FN", "MW", "FT", "WW", "BS"
+  stattrak        Boolean  @default(false)
+  steamPrice      Float
+  externalPrice   Float?
+  timestamp       DateTime @default(now())
+}
+
+model TradeUpBlueprint {
+  id                      String   @id @default(cuid())
+  targetSkinId            String
+  targetSkin              Skin     @relation("TargetSkin", fields: [targetSkinId], references: [id])
+  requiredInputRarity     String
+  requiredInputCollection String
+}
+
+model TradeUpSimulation {
+  id                String   @id @default(cuid())
+  
+  targetSkinId      String
+  targetSkin        Skin     @relation("TargetSim", fields: [targetSkinId], references: [id])
+  targetCondition   String
+  
+  inputSkinId       String?
+  inputSkin         Skin?    @relation("InputSim", fields: [inputSkinId], references: [id])
+  inputCondition    String?
+  
+  targetAverageFloat Float
+  costOf10Inputs    Float
+  targetValue       Float
+  averageFailValue  Float
+  evResult          Float
+  timestamp         DateTime @default(now())
+}
