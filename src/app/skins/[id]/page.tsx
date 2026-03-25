@@ -5,6 +5,8 @@ import { getSkinScenarioMatrix, getRequiredInputFloat, CONDITION_LABELS } from "
 import Link from "next/link";
 import { Price } from "@/components/Price";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SkinDetailsPage({ params }: { params: { id: string } }) {
   const { id } = await params;
   const skin = await prisma.skin.findUnique({
