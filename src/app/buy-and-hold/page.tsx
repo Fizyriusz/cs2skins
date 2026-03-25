@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import BuyAndHoldClient from "./BuyAndHoldClient";
 import { getDistinctWeapons } from "./actions";
+import AddSkinButton from "./AddSkinButton";
 
 export const metadata = {
   title: 'Buy & Hold Analysis | CS2 Skins',
@@ -9,7 +10,6 @@ export const metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function BuyAndHoldPage() {
-  // Gracefully handle missing DB or build-time placeholders
   let initialWeapons: string[] = ["P2000"];
   try {
     const fetched = await getDistinctWeapons();
@@ -20,13 +20,18 @@ export default async function BuyAndHoldPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
-          Buy & Hold Analysis
-        </h1>
-        <p className="text-gray-400 max-w-2xl">
-          Moduł do poszukiwania niedoszacowanych przedmiotów pod inwestycje długoterminowe. Przełączaj stany jakości, by na bieżąco analizować rzadkość i rentowność skinów lub naklejek.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
+            Buy &amp; Hold Analysis
+          </h1>
+          <p className="text-gray-400 max-w-2xl">
+            Moduł do poszukiwania niedoszacowanych przedmiotów pod inwestycje długoterminowe. Przełączaj stany jakości, by na bieżąco analizować rzadkość i rentowność skinów lub naklejek.
+          </p>
+        </div>
+        <div className="shrink-0 pt-1">
+          <AddSkinButton />
+        </div>
       </div>
 
       <Suspense fallback={<div className="text-gray-500 animate-pulse">Ładowanie interfejsu...</div>}>
@@ -35,3 +40,4 @@ export default async function BuyAndHoldPage() {
     </div>
   );
 }
+

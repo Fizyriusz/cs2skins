@@ -1,156 +1,125 @@
-import { supabase } from "@/lib/supabase"
-import { getRarityConfig } from "@/lib/rarity"
-import { Price } from "@/components/Price"
+import Link from "next/link";
 
-const CONDITIONS = ["FN", "MW", "FT", "WW", "BS"]
-
-const CONDITION_LABEL: Record<string, string> = {
-  FN: "Factory New",
-  MW: "Minimal Wear",
-  FT: "Field-Tested",
-  WW: "Well-Worn",
-  BS: "Battle-Scarred",
-}
-
-export const dynamic = 'force-dynamic';
-
-export default async function DashboardPage() {
-  const { data: rawSkins, error } = await supabase
-    .from('Skin')
-    .select(`
-      *,
-      marketData:MarketData (
-        condition, stattrak, steamPrice, externalPrice, timestamp
-      )
-    `)
-    .order('rarity', { ascending: true });
-
-  const skins = (rawSkins || []).map(skin => {
-    // Sort market data by desc timestamp directly here
-    if (skin.marketData) {
-      skin.marketData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    }
-    return skin;
-  });
-
+export default function HomePage() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold">Market Dashboard</h2>
-          <p className="text-gray-400 mt-1">Aktualne ceny skinów z podziałem na kondycję (wear)</p>
+    <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-10 animate-in fade-in duration-700">
+      {/* Logo / Title */}
+      <div className="text-center space-y-3">
+        <div className="text-5xl font-black tracking-tight">
+          <span className="bg-gradient-to-r from-orange-400 via-yellow-400 to-orange-500 bg-clip-text text-transparent">
+            CS2 Analytics
+          </span>
         </div>
-        <span className="text-xs text-gray-500 border border-gray-700 px-3 py-1.5 rounded-full">{skins.length} skinów</span>
-      </header>
+        <p className="text-gray-400 text-lg">Wybierz moduł do pracy</p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {skins.map((skin: any) => {
-          const rarity = getRarityConfig(skin.rarity)
+      {/* Two Big Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
 
-          // Pobierz najnowsze ceny dla każdej kondycji (zwykłe i ST)
-          const normalPrices = CONDITIONS.map(cond =>
-            skin.marketData.find((md: any) => md.condition === cond && !md.stattrak)
-          )
-          const stPrices = CONDITIONS.map(cond =>
-            skin.marketData.find((md: any) => md.condition === cond && md.stattrak)
-          )
-          const hasStatTrak = stPrices.some(Boolean)
+        {/* Trade-Up Calculator Card */}
+        <Link
+          href="/calculator"
+          className="group relative rounded-2xl p-8 border border-gray-700 bg-gray-800/60 hover:bg-gray-800 hover:border-orange-500/60 transition-all duration-300 shadow-xl hover:shadow-orange-500/10 hover:shadow-2xl hover:-translate-y-1 flex flex-col gap-5"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
+              🎯
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Kalkulator Trade-Up</h2>
+              <p className="text-xs text-orange-400 font-semibold uppercase tracking-wide mt-0.5">Trade-Up Contracts</p>
+            </div>
+          </div>
 
-          return (
-            <div
-              key={skin.id}
-              className={`rounded-xl p-6 shadow-xl border transition-all hover:shadow-2xl ${rarity.bgClass} ${rarity.borderClass}`}
-              style={{ borderLeftWidth: 3, borderLeftColor: rarity.hex }}
-            >
-              {/* Header */}
-              <div className="flex justify-between items-start mb-5 pb-4 border-b border-gray-700/60">
-                <div>
-                  <p className="text-xs font-semibold mb-1" style={{ color: rarity.hex }}>{rarity.label}</p>
-                  <h3 className="text-xl font-bold tracking-tight">
-                    <a href={`/skins/${skin.id}`} className="hover:text-orange-400 transition-colors">
-                      {skin.weapon} <span className="text-gray-400">|</span> <span className="text-white">{skin.name}</span>
-                    </a>
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{skin.collection}</p>
-                </div>
-                <div className="text-right space-y-2">
-                  <div className="text-xs text-gray-500 space-y-0.5">
-                    <p>Float: {skin.minFloat.toFixed(2)}–{skin.maxFloat.toFixed(2)}</p>
-                    {skin.floatRequiredMax && (
-                      <p className="text-orange-400/80">Input max: {skin.floatRequiredMax.toFixed(3)}</p>
-                    )}
-                  </div>
-                  <a 
-                    href={`/skins/${skin.id}`} 
-                    className="inline-block text-[10px] font-bold bg-gray-800 hover:bg-orange-600 border border-gray-700 rounded px-2 py-1 text-gray-300 hover:text-white transition-all uppercase tracking-tighter"
-                  >
-                    Analiza Scenariusza
-                  </a>
-                </div>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            Analizuj prawdopodobieństwa, wyliczaj EV, modeluj float output i dobieraj optymalne inputy do trade-upów CS2.
+          </p>
+
+          <div className="flex flex-wrap gap-2 text-xs">
+            {["EV Kalkulator", "Float Optimizer", "Macierz Scenariuszy", "Fillery"].map(tag => (
+              <span key={tag} className="bg-orange-500/10 border border-orange-500/20 text-orange-300 px-2.5 py-1 rounded-full">
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors mt-auto">
+            Otwórz Kalkulator
+            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
+        {/* Investment Hub Card */}
+        <div className="rounded-2xl border border-gray-700 bg-gray-800/60 shadow-xl overflow-hidden flex flex-col">
+          <div className="p-8 flex flex-col gap-5 flex-1">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-3xl">
+                📈
               </div>
-
-              {/* Condition Matrix - Normal */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-5 gap-2 text-center text-xs">
-                  {CONDITIONS.map((cond, idx) => {
-                    const data = normalPrices[idx]
-                    return (
-                      <div
-                        key={cond}
-                        className={`rounded-lg p-2.5 flex flex-col items-center border transition-all hover:-translate-y-0.5 ${
-                          data
-                            ? "bg-gray-900/70 border-gray-700 hover:border-orange-500/60"
-                            : "bg-gray-900/20 border-gray-800 opacity-50"
-                        }`}
-                      >
-                        <span className="font-bold text-gray-300 text-xs">{cond}</span>
-                        {data ? (
-                          <>
-                            <Price usd={data.steamPrice} className="text-green-400 font-semibold mt-1 text-sm" />
-                            {data.externalPrice && (
-                              <span className="text-gray-500 text-[10px] mt-0.5 pt-0.5 border-t border-gray-800 w-full text-center">
-                                Ext: <Price usd={data.externalPrice} className="" />
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-gray-700 mt-1 text-xs">–</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* StatTrak row (if any) */}
-                {hasStatTrak && (
-                  <div className="grid grid-cols-5 gap-2 text-center text-xs mt-1">
-                    {CONDITIONS.map((cond, idx) => {
-                      const data = stPrices[idx]
-                      return (
-                        <div
-                          key={cond}
-                          className={`rounded-lg p-2 flex flex-col items-center border ${
-                            data
-                              ? "bg-orange-900/20 border-orange-800/40"
-                              : "bg-transparent border-transparent"
-                          }`}
-                        >
-                          {data ? (
-                            <>
-                              <span className="text-orange-400 text-[10px] font-bold">ST™</span>
-                              <Price usd={data.steamPrice} className="text-orange-300 font-semibold text-sm" />
-                            </>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+              <div>
+                <h2 className="text-xl font-bold text-white">Investment Hub</h2>
+                <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wide mt-0.5">Long-Term Analysis</p>
               </div>
             </div>
-          )
-        })}
+
+            <p className="text-sm text-gray-400 leading-relaxed">
+              Analizuj rynek pod kątem inwestycji długoterminowych. Szukaj niedoszacowanych skinów, obserwuj podaż i planuj zakupy.
+            </p>
+
+            <div className="flex flex-wrap gap-2 text-xs">
+              {["Rarity Analysis", "Undervaluation Matrix", "Supply vs Demand", "GAP Score"].map(tag => (
+                <span key={tag} className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Sub-modules list */}
+          <div className="border-t border-gray-700 divide-y divide-gray-700/60">
+            <Link
+              href="/buy-and-hold"
+              className="group flex items-center justify-between px-6 py-4 hover:bg-gray-700/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-lg">💎</span>
+                <div>
+                  <p className="text-sm font-semibold text-white group-hover:text-emerald-300 transition-colors">Buy &amp; Hold</p>
+                  <p className="text-xs text-gray-500">Wykrywaj niedoszacowane skiny</p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-gray-600 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+
+            <div className="flex items-center justify-between px-6 py-4 opacity-40 cursor-not-allowed select-none">
+              <div className="flex items-center gap-3">
+                <span className="text-lg">🔮</span>
+                <div>
+                  <p className="text-sm font-semibold text-white">Trend Scanner</p>
+                  <p className="text-xs text-gray-500">Trendy cenowe (wkrótce)</p>
+                </div>
+              </div>
+              <span className="text-[10px] bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full font-semibold">SOON</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Bottom Quick Links */}
+      <div className="flex items-center gap-6 text-xs text-gray-600">
+        <Link href="/market" className="hover:text-gray-400 transition-colors">Market Dashboard</Link>
+        <span>·</span>
+        <Link href="/skins" className="hover:text-gray-400 transition-colors">Baza Skinów</Link>
+        <span>·</span>
+        <Link href="/graph" className="hover:text-gray-400 transition-colors">Wykresy</Link>
+        <span>·</span>
+        <Link href="/input" className="hover:text-gray-400 transition-colors">Wprowadź Ceny</Link>
       </div>
     </div>
-  )
+  );
 }

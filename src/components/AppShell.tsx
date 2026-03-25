@@ -8,16 +8,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     <CurrencyProvider>
       <nav className="border-b border-gray-800 bg-gray-950 p-4 shadow-md sticky top-0 z-50">
         <div className="container mx-auto flex justify-between items-center px-4">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
-            CS2 Trade-Up Calc
-          </h1>
+          <a href="/" className="text-xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent hover:opacity-80 transition-opacity">
+            CS2 Analytics
+          </a>
           <div className="flex items-center gap-6">
             <div className="space-x-5 text-sm font-medium hidden md:flex">
-              <a href="/" className="hover:text-orange-400 transition-colors">Dashboard</a>
+              <a href="/" className="hover:text-orange-400 transition-colors">Hub</a>
               <a href="/calculator" className="hover:text-orange-400 transition-colors">Kalkulator EV</a>
-              <a href="/input" className="hover:text-orange-400 transition-colors">Wprowadź Ceny</a>
+              <a href="/market" className="hover:text-orange-400 transition-colors">Rynki</a>
               <a href="/skins" className="hover:text-orange-400 transition-colors">Baza Skinów</a>
-              <a href="/buy-and-hold" className="hover:text-orange-400 transition-colors text-emerald-400 font-bold">Buy & Hold</a>
+              <a href="/buy-and-hold" className="hover:text-emerald-400 transition-colors text-emerald-400 font-bold">Buy &amp; Hold</a>
             </div>
             <CurrencyToggle />
           </div>
