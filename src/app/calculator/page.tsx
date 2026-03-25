@@ -1,15 +1,25 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import CalculatorClient, { type SkinDataForCalc } from "./CalculatorClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function CalculatorPage() {
-  // Fetch all skins with their latest prices per condition
-  const skins = await prisma.skin.findMany({
-    include: {
-      marketData: { orderBy: { timestamp: "desc" } },
-    },
-    orderBy: [{ rarity: "asc" }, { weapon: "asc" }],
+  const { data: rawSkins, error } = await supabase
+    .from('Skin')
+    .select(`
+      *,
+      marketData:MarketData (
+        condition, stattrak, steamPrice, timestamp
+      )
+    `)
+    .order('rarity', { ascending: true })
+    .order('weapon', { ascending: true });
+
+  const skins = (rawSkins || []).map(skin => {
+    if (skin.marketData) {
+      skin.marketData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    return skin;
   });
 
   const toSkinData = (skin: typeof skins[number]): SkinDataForCalc => {

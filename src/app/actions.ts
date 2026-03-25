@@ -1,14 +1,14 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 
 // --- Typy ---
 export type PriceImportItem = {
-  skin: string;       // "P2000 | Dispatch" lub "Dispatch"
-  weapon?: string;    // "P2000" (opcjonalne, jeśli skin zawiera już weapon | name)
+  skin: string;
+  weapon?: string;
   stattrak: boolean;
-  quality: string;    // "Factory New" | "Minimal Wear" | "Field-Tested" | "Well-Worn" | "Battle-Scarred"
+  quality: string;
   steamPrice: number;
   externalPrice?: number;
 };
@@ -38,14 +38,12 @@ const QUALITY_TO_CONDITION: Record<string, string> = {
   "BS": "BS",
 };
 
-// --- Bulk import cen ---
 export async function bulkImportPrices(items: PriceImportItem[]) {
   const errors: string[] = [];
   let saved = 0;
 
   for (const item of items) {
     try {
-      // Rozdziel "Weapon | Name" jeśli potrzeba
       let skinName = item.skin;
       let weaponName = item.weapon ?? "";
 
@@ -57,31 +55,31 @@ export async function bulkImportPrices(items: PriceImportItem[]) {
 
       const condition = QUALITY_TO_CONDITION[item.quality] ?? item.quality;
 
-      // Znajdź skin w bazie
-      const skin = await prisma.skin.findFirst({
-        where: {
-          name: skinName,
-          ...(weaponName ? { weapon: weaponName } : {}),
-        }
-      });
+      const { data: skins, error: findError } = await supabase
+        .from('Skin')
+        .select('id')
+        .eq('name', skinName)
+        .eq('weapon', weaponName)
+        .limit(1);
 
-      if (!skin) {
+      if (findError || !skins || skins.length === 0) {
         errors.push(`Nie znaleziono skina: ${item.skin}`);
         continue;
       }
 
-      await prisma.marketData.create({
-        data: {
-          skinId: skin.id,
-          condition,
-          stattrak: item.stattrak,
-          steamPrice: item.steamPrice,
-          externalPrice: item.externalPrice ?? null,
-        }
+      const { error: insertError } = await supabase.from('MarketData').insert({
+        id: crypto.randomUUID(),
+        skinId: skins[0].id,
+        condition,
+        stattrak: item.stattrak,
+        steamPrice: item.steamPrice,
+        externalPrice: item.externalPrice ?? null,
       });
+
+      if (insertError) throw insertError;
       saved++;
-    } catch (e) {
-      errors.push(`Błąd dla ${item.skin}: ${String(e)}`);
+    } catch (e: any) {
+      errors.push(`Błąd dla ${item.skin}: ${e.message || String(e)}`);
     }
   }
 
@@ -90,46 +88,55 @@ export async function bulkImportPrices(items: PriceImportItem[]) {
   return { saved, errors };
 }
 
-// --- Upsert skinów ---
 export async function upsertSkins(items: SkinUpsertItem[]) {
   const errors: string[] = [];
   let saved = 0;
 
   for (const item of items) {
     try {
-      await prisma.skin.upsert({
-        where: {
-          id: (await prisma.skin.findFirst({
-            where: {
-              name: item.name,
-              weapon: item.weapon,
-            }
-          }))?.id ?? "__NOT_FOUND__",
-        },
-        update: {
-          collection: item.collection,
-          rarity: item.rarity,
-          minFloat: item.minFloat,
-          maxFloat: item.maxFloat,
-          floatRequiredMin: item.floatRequiredMin,
-          floatRequiredMax: item.floatRequiredMax,
-          notes: item.notes,
-        },
-        create: {
-          name: item.name,
-          weapon: item.weapon,
-          collection: item.collection,
-          rarity: item.rarity,
-          minFloat: item.minFloat,
-          maxFloat: item.maxFloat,
-          floatRequiredMin: item.floatRequiredMin,
-          floatRequiredMax: item.floatRequiredMax,
-          notes: item.notes,
-        }
-      });
+      // Szukamy czy skin już istnieje
+      const { data: existingSkins } = await supabase
+        .from('Skin')
+        .select('id')
+        .eq('name', item.name)
+        .eq('weapon', item.weapon)
+        .limit(1);
+
+      const existingId = existingSkins?.[0]?.id;
+
+      const skinData = {
+        name: item.name,
+        weapon: item.weapon,
+        collection: item.collection,
+        rarity: item.rarity,
+        minFloat: item.minFloat,
+        maxFloat: item.maxFloat,
+        floatRequiredMin: item.floatRequiredMin,
+        floatRequiredMax: item.floatRequiredMax,
+        notes: item.notes,
+      };
+
+      if (existingId) {
+        const { error: updateError } = await supabase
+          .from('Skin')
+          .update(skinData)
+          .eq('id', existingId);
+        
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('Skin')
+          .insert({
+            id: crypto.randomUUID(),
+            ...skinData
+          });
+          
+        if (insertError) throw insertError;
+      }
+      
       saved++;
-    } catch (e) {
-      errors.push(`Błąd dla ${item.weapon} | ${item.name}: ${String(e)}`);
+    } catch (e: any) {
+      errors.push(`Błąd dla ${item.weapon} | ${item.name}: ${e.message || String(e)}`);
     }
   }
 

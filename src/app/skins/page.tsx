@@ -1,15 +1,25 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import SkinImportClient from "@/components/SkinImportClient";
 import { getRarityConfig } from "@/lib/rarity";
 
 export const dynamic = 'force-dynamic';
 
 export default async function SkinsPage() {
-  const skins = await prisma.skin.findMany({
-    include: {
-      marketData: { orderBy: { timestamp: "desc" }, take: 5 }
-    },
-    orderBy: { rarity: "asc" }
+  const { data: rawSkins, error } = await supabase
+    .from('Skin')
+    .select(`
+      *,
+      marketData:MarketData (
+        condition, stattrak, steamPrice, externalPrice, timestamp
+      )
+    `)
+    .order('rarity', { ascending: true });
+
+  const skins = (rawSkins || []).map(skin => {
+    if (skin.marketData) {
+      skin.marketData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    return skin;
   });
 
   return (

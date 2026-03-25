@@ -1,16 +1,17 @@
-import { prisma } from "@/lib/prisma"
+import { supabase } from "@/lib/supabase"
 import PriceChart from "@/components/PriceChart"
 
 export const dynamic = 'force-dynamic';
 
 export default async function GraphPage() {
-  const skins = await prisma.skin.findMany({
-    include: {
-      marketData: {
-        orderBy: { timestamp: 'asc' }
-      }
-    }
-  });
+  const { data: skins, error } = await supabase
+    .from('Skin')
+    .select(`
+      *,
+      marketData:MarketData (
+        condition, steamPrice, externalPrice, timestamp
+      )
+    `);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -20,14 +21,14 @@ export default async function GraphPage() {
       </header>
 
       <div className="space-y-12">
-        {skins.map(skin => {
+        {(skins || []).map((skin: any) => {
           // Pokazujemy wykres połączony dla Factory New (najbardziej miarodajny)
           // Lub można wyciągnąć opcję wyboru kondycji za pomocą stanu (client component). Dla uproszczenia pokażemy dane FN.
-          const fnData = skin.marketData.filter(md => md.condition === "FN");
+          const fnData = (skin.marketData || []).filter((md: any) => md.condition === "FN");
           
           if (fnData.length === 0) return null;
 
-          const chartData = fnData.map(d => ({
+          const chartData = fnData.map((d: any) => ({
             date: new Date(d.timestamp).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
             steamPrice: d.steamPrice,
             externalPrice: d.externalPrice,

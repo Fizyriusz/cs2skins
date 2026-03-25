@@ -1,11 +1,15 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import PriceImportClient from "@/components/PriceImportClient";
 
 export const dynamic = 'force-dynamic';
 
 export default async function InputPage() {
-  const skins = await prisma.skin.findMany({ orderBy: { weapon: "asc" } });
-  const skinNames = skins.map(s => `${s.weapon} | ${s.name}`);
+  const { data: skins } = await supabase
+    .from('Skin')
+    .select('weapon, name')
+    .order('weapon', { ascending: true });
+    
+  const skinNames = (skins || []).map((s: any) => `${s.weapon} | ${s.name}`);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-500">

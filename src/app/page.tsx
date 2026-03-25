@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { supabase } from "@/lib/supabase"
 import { getRarityConfig } from "@/lib/rarity"
 import { Price } from "@/components/Price"
 
@@ -15,13 +15,22 @@ const CONDITION_LABEL: Record<string, string> = {
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const skins = await prisma.skin.findMany({
-    include: {
-      marketData: {
-        orderBy: { timestamp: 'desc' }
-      }
-    },
-    orderBy: { rarity: 'asc' }
+  const { data: rawSkins, error } = await supabase
+    .from('Skin')
+    .select(`
+      *,
+      marketData:MarketData (
+        condition, stattrak, steamPrice, externalPrice, timestamp
+      )
+    `)
+    .order('rarity', { ascending: true });
+
+  const skins = (rawSkins || []).map(skin => {
+    // Sort market data by desc timestamp directly here
+    if (skin.marketData) {
+      skin.marketData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    }
+    return skin;
   });
 
   return (
