@@ -3,36 +3,50 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Skin {
-  id              String             @id @default(cuid())
-  name            String
-  weapon          String
-  collection      String
-  rarity          String
-  minFloat        Float
-  maxFloat        Float
-  floatRequiredMin Float?   // Minimalny input float wymagany do trafienia FN/MW/etc
-  floatRequiredMax Float?   // Maksymalny input float do trafienia w konkretny wear
-  notes           String?  // Notatki np. "warto robic na FN pod kontrakt z X"
-  marketData      MarketData[]
-  blueprintsTarget TradeUpBlueprint[] @relation("TargetSkin")
-  simulationsTarget  TradeUpSimulation[] @relation("TargetSim")
-  simulationsInput   TradeUpSimulation[] @relation("InputSim")
+  id               String               @id @default(cuid())
+  name             String
+  weapon           String
+  collection       String
+  rarity           String
+  minFloat         Float
+  maxFloat         Float
+  floatRequiredMin Float?
+  floatRequiredMax Float?
+  notes            String?
+  isActiveDrop     Boolean              @default(true)
+  totalSupply      Int                  @default(0)
+  marketData       MarketData[]
+  blueprintsTarget TradeUpBlueprint[]   @relation("TargetSkin")
+  simulationsTarget TradeUpSimulation[] @relation("TargetSim")
+  simulationsInput TradeUpSimulation[]  @relation("InputSim")
+  usageStats       UsageStat[]
 }
 
 model MarketData {
-  id              String   @id @default(cuid())
-  skinId          String
-  skin            Skin     @relation(fields: [skinId], references: [id])
-  condition       String   // "FN", "MW", "FT", "WW", "BS"
-  stattrak        Boolean  @default(false)
-  steamPrice      Float
-  externalPrice   Float?
-  timestamp       DateTime @default(now())
+  id            String   @id @default(cuid())
+  skinId        String
+  skin          Skin     @relation(fields: [skinId], references: [id])
+  condition     String
+  stattrak      Boolean  @default(false)
+  steamPrice    Float
+  externalPrice Float?
+  volume        Int?
+  timestamp     DateTime @default(now())
+}
+
+model UsageStat {
+  id        String   @id @default(cuid())
+  skinId    String
+  skin      Skin     @relation(fields: [skinId], references: [id])
+  month     String   // "YYYY-MM"
+  usage     Int      // Amount applied or added
+  createdAt DateTime @default(now())
 }
 
 model TradeUpBlueprint {

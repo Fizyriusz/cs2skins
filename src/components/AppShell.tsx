@@ -17,6 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <a href="/calculator" className="hover:text-orange-400 transition-colors">Kalkulator EV</a>
               <a href="/input" className="hover:text-orange-400 transition-colors">Wprowadź Ceny</a>
               <a href="/skins" className="hover:text-orange-400 transition-colors">Baza Skinów</a>
+              <a href="/buy-and-hold" className="hover:text-orange-400 transition-colors text-emerald-400 font-bold">Buy & Hold</a>
             </div>
             <CurrencyToggle />
           </div>
