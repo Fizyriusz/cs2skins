@@ -6,8 +6,17 @@ export const metadata = {
   title: 'Buy & Hold Analysis | CS2 Skins',
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function BuyAndHoldPage() {
-  const initialWeapons = await getDistinctWeapons();
+  // Gracefully handle missing DB or build-time placeholders
+  let initialWeapons: string[] = ["P2000"];
+  try {
+    const fetched = await getDistinctWeapons();
+    if (fetched && fetched.length > 0) initialWeapons = fetched;
+  } catch (error) {
+    console.warn("Could not fetch weapons at build/render time", error);
+  }
 
   return (
     <div className="space-y-6">
