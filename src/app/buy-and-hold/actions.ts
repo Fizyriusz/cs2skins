@@ -100,3 +100,94 @@ export async function getUndervaluationMatrix(category: string, condition: strin
     };
   }).sort((a, b) => b.gap - a.gap);
 }
+
+export type SupplyStatInput = {
+  weapon: string;
+  name: string;
+  condition: string;
+  globalSupplyTotal?: number;
+  globalSupplyWear?: number;
+  marketSupplyTotal?: number;
+  marketSupplyWear?: number;
+  marketLiquidity?: number;
+  marketActivity30d?: number;
+  steamSales30d?: number;
+};
+
+export async function syncSupplyStats(items: SupplyStatInput[]) {
+  const errors: string[] = [];
+  let saved = 0;
+
+  for (const item of items) {
+    try {
+      // Find skin by weapon + name
+      const { data: skins } = await supabase
+        .from('Skin')
+        .select('id')
+        .eq('weapon', item.weapon)
+        .eq('name', item.name)
+        .limit(1);
+
+      if (!skins || skins.length === 0) {
+        errors.push(`Nie znaleziono skina: ${item.weapon} | ${item.name}`);
+        continue;
+      }
+
+      const { error } = await supabase.from('SupplyStat').insert({
+        id: crypto.randomUUID(),
+        skinId: skins[0].id,
+        condition: item.condition,
+        globalSupplyTotal: item.globalSupplyTotal ?? null,
+        globalSupplyWear: item.globalSupplyWear ?? null,
+        marketSupplyTotal: item.marketSupplyTotal ?? null,
+        marketSupplyWear: item.marketSupplyWear ?? null,
+        marketLiquidity: item.marketLiquidity ?? null,
+        marketActivity30d: item.marketActivity30d ?? null,
+        steamSales30d: item.steamSales30d ?? null,
+      });
+
+      if (error) throw error;
+      saved++;
+    } catch (e: any) {
+      errors.push(`Błąd dla ${item.weapon} | ${item.name}: ${e.message || String(e)}`);
+    }
+  }
+
+  return { saved, errors };
+}
+
+export async function getSupplyStats(weapon: string, condition: string) {
+  // Get latest SupplyStat per skin for this weapon + condition
+  const { data: skins } = await supabase
+    .from('Skin')
+    .select('id, name, weapon')
+    .eq('weapon', weapon);
+
+  if (!skins || skins.length === 0) return [];
+
+  const skinIds = skins.map((s: any) => s.id);
+
+  const { data: stats } = await supabase
+    .from('SupplyStat')
+    .select('*')
+    .in('skinId', skinIds)
+    .eq('condition', condition)
+    .order('recordedAt', { ascending: false });
+
+  if (!stats) return [];
+
+  // Return only the latest stat per skin
+  const latestBySkin = new Map<string, any>();
+  for (const s of stats) {
+    if (!latestBySkin.has(s.skinId)) {
+      latestBySkin.set(s.skinId, s);
+    }
+  }
+
+  return skins.map((skin: any) => ({
+    skinId: skin.id,
+    name: skin.name,
+    ...(latestBySkin.get(skin.id) || {}),
+  }));
+}
+

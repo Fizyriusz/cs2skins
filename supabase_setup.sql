@@ -58,3 +58,22 @@ CREATE TABLE "UsageStat" (
 -- Indexes for performance
 CREATE INDEX "MarketData_skinId_idx" ON "MarketData"("skinId");
 CREATE INDEX "UsageStat_skinId_idx" ON "UsageStat"("skinId");
+
+-- SupplyStat: podaż globalna (CSFloat) + rynkowa (Pricempire), snapshoty w czasie
+CREATE TABLE "SupplyStat" (
+  "id"                  TEXT PRIMARY KEY,
+  "skinId"              TEXT NOT NULL REFERENCES "Skin"("id") ON DELETE CASCADE,
+  "condition"           TEXT NOT NULL,
+  "globalSupplyTotal"   INTEGER,
+  "globalSupplyWear"    INTEGER,
+  "marketSupplyTotal"   INTEGER,
+  "marketSupplyWear"    INTEGER,
+  "marketLiquidity"     REAL,
+  "marketActivity30d"   INTEGER,
+  "steamSales30d"       INTEGER,
+  "recordedAt"          TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX "SupplyStat_skinId_idx" ON "SupplyStat"("skinId");
+CREATE INDEX "SupplyStat_condition_idx" ON "SupplyStat"("condition");
+
