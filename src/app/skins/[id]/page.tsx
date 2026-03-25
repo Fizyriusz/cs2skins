@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabase } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import { getRarityConfig } from "@/lib/rarity";
 import { getSkinScenarioMatrix, getRequiredInputFloat, CONDITION_LABELS } from "@/lib/calculator";
@@ -9,21 +9,32 @@ export const dynamic = 'force-dynamic';
 
 export default async function SkinDetailsPage({ params }: { params: { id: string } }) {
   const { id } = await params;
-  const skin = await prisma.skin.findUnique({
-    where: { id },
-    include: {
-      marketData: { orderBy: { timestamp: "desc" } }
-    }
-  });
+  
+  const { data: skinData, error } = await supabase
+    .from('Skin')
+    .select(`
+      *,
+      marketData:MarketData (
+        condition, stattrak, steamPrice, timestamp
+      )
+    `)
+    .eq('id', id)
+    .single();
 
-  if (!skin) notFound();
+  if (error || !skinData) notFound();
+
+  if (skinData.marketData) {
+    skinData.marketData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  const skin = skinData;
 
   const rarity = getRarityConfig(skin.rarity);
   const matrix = getSkinScenarioMatrix(skin.minFloat, skin.maxFloat);
 
   // Zdobądź najnowsze ceny (zwykłe i ST)
   const getLatestPrice = (cond: string, st: boolean) => {
-    return skin.marketData.find((md: any) => md.condition === cond && md.stattrak === st)?.steamPrice;
+    return (skin.marketData || []).find((md: any) => md.condition === cond && md.stattrak === st)?.steamPrice;
   };
 
   return (
