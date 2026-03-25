@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import CalculatorClient, { type SkinDataForCalc } from "./CalculatorClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function CalculatorPage() {
   // Fetch all skins with their latest prices per condition
   const skins = await prisma.skin.findMany({

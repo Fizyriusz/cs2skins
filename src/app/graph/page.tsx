@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import PriceChart from "@/components/PriceChart"
 
+export const dynamic = 'force-dynamic';
+
 export default async function GraphPage() {
   const skins = await prisma.skin.findMany({
     include: {

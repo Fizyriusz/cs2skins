@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import SkinImportClient from "@/components/SkinImportClient";
 import { getRarityConfig } from "@/lib/rarity";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SkinsPage() {
   const skins = await prisma.skin.findMany({
     include: {

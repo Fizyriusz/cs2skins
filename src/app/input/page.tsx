@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import PriceImportClient from "@/components/PriceImportClient";
 
+export const dynamic = 'force-dynamic';
+
 export default async function InputPage() {
   const skins = await prisma.skin.findMany({ orderBy: { weapon: "asc" } });
   const skinNames = skins.map(s => `${s.weapon} | ${s.name}`);

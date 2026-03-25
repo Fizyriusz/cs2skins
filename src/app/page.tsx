@@ -12,6 +12,8 @@ const CONDITION_LABEL: Record<string, string> = {
   BS: "Battle-Scarred",
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const skins = await prisma.skin.findMany({
     include: {
