@@ -8,22 +8,30 @@ import PriceParserModal from "@/components/PriceParserModal";
 const CONDITIONS = ["FN", "MW", "FT", "WW", "BS"];
 
 // ─── Signals ──────────────────────────────────────────────────────────
-function computeSignals(variants: any[]) {
-  const signals: { icon: string; label: string; color: string }[] = [];
-  if (!variants || variants.length === 0) return signals;
-
-  let hasDryUp = false;
-  let hasFakeScarcity = false;
+function computeSignals(item: any, variants: any[]) {
+  const signalsMap = new Map<string, { icon: string; label: string; color: string; desc: string }>();
+  if (!variants || variants.length === 0) return Array.from(signalsMap.values());
 
   for (const v of variants) {
-    if (v.empire_steam_sales_30d && v.empire_listings_wear && v.empire_steam_sales_30d > v.empire_listings_wear) hasDryUp = true;
-    if (v.empire_listings_wear && v.csfloat_total_registered_wear && v.empire_listings_wear < 100 && v.csfloat_total_registered_wear > 10000) hasFakeScarcity = true;
+    // 1. Extinction Record
+    if (v.empire_listings_wear < 50 && v.csfloat_total_registered_wear < 5000 && v.stattrak) {
+      signalsMap.set("💎", { icon: "💎", label: "KOLEKCJONERSKI UNIKAT", color: "bg-purple-900/40 text-purple-400 border border-purple-800", desc: "Bardzo niska podaż globalna (<5000) i rynkowa (<50) ze StatTrak™." });
+    }
+    // 2. High Consumption
+    if (v.empire_steam_sales_30d && v.empire_listings_wear && v.empire_steam_sales_30d > v.empire_listings_wear * 5) {
+      signalsMap.set("🔥", { icon: "🔥", label: "WYSOKIE ZUŻYCIE", color: "bg-orange-900/40 text-orange-400 border border-orange-800", desc: "Miesięczna sprzedaż na Steam jest ponad 5x wyższa niż całkowita liczba ofert rynkowych." });
+    }
+    // 3. Safe Haven
+    if (item.isActiveDrop === false && v.empire_liquidity_percent_wear && v.empire_liquidity_percent_wear > 50) {
+      signalsMap.set("🛡️", { icon: "🛡️", label: "BEZPIECZNA PRZYSTAŃ", color: "bg-emerald-900/40 text-emerald-400 border border-emerald-800", desc: "Zablokowany drop (skin wycofany) z utrzymującą się wysoką płynnością obrotu (>50%)." });
+    }
+    // 4. Fake Scarcity (Legacy but useful)
+    if (v.empire_listings_wear && v.csfloat_total_registered_wear && v.empire_listings_wear < 100 && v.csfloat_total_registered_wear > 10000) {
+      signalsMap.set("👻", { icon: "👻", label: "FAKE SCARCITY", color: "bg-yellow-900/40 text-yellow-500 border border-yellow-800", desc: "Ułamkowa ilość krąży po rynkach (<100), mimo ogromnych rejestrów CSFloat (>10k)." });
+    }
   }
 
-  if (hasDryUp) signals.push({ icon: "🔥", label: "Market Dry-Up:\nPopyt (sprzedaż 30d) rośnie szybciej niż podaż rynkowa. Może " + "oznaczać bliski wzrost ceny.", color: "text-orange-400" });
-  if (hasFakeScarcity) signals.push({ icon: "👻", label: "Fake Scarcity:\nUłamkowa ilość krąży po rynkach, mimo ogromnych rejestrów CSFloat. Ryzyko tzw. wysypu inwestorów z plecaków.", color: "text-yellow-400" });
-
-  return signals;
+  return Array.from(signalsMap.values());
 }
 
 // ─── Tooltip Header ──────────────────────────────────────────────────
@@ -206,7 +214,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
     const computedGlobalTotal = variants.reduce((acc: number, v: any) => acc + (v.csfloat_total_registered_wear || 0), 0);
     const vNormal = variants.find((v: any) => v.condition === condition && !v.stattrak);
     const vST = variants.find((v: any) => v.condition === condition && v.stattrak);
-    const signals = computeSignals(variants);
+    const signals = computeSignals(item, variants);
     const isExpanded = expandedRows.has(item.id + (isQueue ? "_q" : ""));
     const inQueue = compareQueue.has(item.id);
 
@@ -226,7 +234,14 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
                 <div className="font-bold text-gray-200 truncate flex items-center gap-2">
                   {item.weapon} | {item.name}
                 </div>
-                <div className="text-[10px] text-gray-500 truncate">{item.collection}</div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                  <div className="text-[10px] text-gray-500 truncate mr-1">{item.collection}</div>
+                  {signals.map((s, i) => (
+                    <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${s.color}`} title={s.desc}>
+                      {s.icon} <span className="hidden sm:inline">{s.label}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </td>
@@ -258,19 +273,12 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
           <td className="px-4 py-3 text-right font-bold text-emerald-400">
             ${(vNormal?.price || item.price)?.toFixed(2)}
           </td>
-          <td className="px-4 py-3">
-            {signals.length > 0 ? (
-              <div className="flex items-center justify-end gap-1 flex-wrap">
-                {signals.map((s, i) => <span key={i} className={`text-sm ${s.color}`} title={s.label}>{s.icon}</span>)}
-              </div>
-            ) : <div className="text-right text-gray-700 text-xs">–</div>}
-          </td>
         </tr>
 
         {/* SZCZEGÓŁOWA TABELA WARIANTÓW */}
         {isExpanded && variants.length > 0 && (
           <tr>
-            <td colSpan={9} className="p-0 bg-gray-950/80 shadow-inner">
+            <td colSpan={8} className="p-0 bg-gray-950/80 shadow-inner">
               <div className="border-t border-b border-gray-800/80 px-8 py-4">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Rozbicie i korekta (Edycja Inline):</h3>
@@ -425,7 +433,6 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
                   <TH text={`Reg. ST™`} />
                   <TH text={`Circ. ST™`} />
                   <TH text={`Cena (${condition})`} />
-                  <TH text="Sygnały" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/50">
@@ -462,7 +469,6 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
                 <TH text={`Reg. ST™`} popover="Podaż (Registered) DLA WARIANTU STATTRAK." sortable sortKey="reg_st" currentSort={sortConf} onSort={handleSort} />
                 <TH text={`Circ. ST™`} popover="Podaż czynnie krążąca po rynkach DLA WARIANTU STATTRAK." sortable sortKey="circ_st" currentSort={sortConf} onSort={handleSort} />
                 <TH text={`Cena (${condition})`} popover="Ostatnia zadeklarowana cena (jeśli brak przy wariancie, bierzemy z ogólnej tabeli Steamów)." sortable sortKey="price" currentSort={sortConf} onSort={handleSort} />
-                <TH text="Sygnały" popover="Modele analityczne Pricempire wskazujące na anomalie np. 🔥 wyschnięcie tynku (dry-up)." />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
