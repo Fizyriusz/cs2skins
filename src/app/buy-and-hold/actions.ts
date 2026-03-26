@@ -105,6 +105,7 @@ export type SupplyStatInput = {
   weapon: string;
   name: string;
   condition: string;
+  stattrak?: boolean;
   globalSupplyTotal?: number;
   globalSupplyWear?: number;
   marketSupplyTotal?: number;
@@ -137,6 +138,7 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
         id: crypto.randomUUID(),
         skinId: skins[0].id,
         condition: item.condition,
+        stattrak: item.stattrak ?? false,
         globalSupplyTotal: item.globalSupplyTotal ?? null,
         globalSupplyWear: item.globalSupplyWear ?? null,
         marketSupplyTotal: item.marketSupplyTotal ?? null,

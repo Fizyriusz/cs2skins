@@ -64,6 +64,7 @@ CREATE TABLE "SupplyStat" (
   "id"                  TEXT PRIMARY KEY,
   "skinId"              TEXT NOT NULL REFERENCES "Skin"("id") ON DELETE CASCADE,
   "condition"           TEXT NOT NULL,
+  "stattrak"            BOOLEAN NOT NULL DEFAULT false,
   "globalSupplyTotal"   INTEGER,
   "globalSupplyWear"    INTEGER,
   "marketSupplyTotal"   INTEGER,

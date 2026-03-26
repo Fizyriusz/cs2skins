@@ -10,6 +10,7 @@ const BLANK: SupplyStatInput = {
   weapon: "",
   name: "",
   condition: "FN",
+  stattrak: false,
   globalSupplyWear: undefined,
   marketSupplyTotal: undefined,
   marketSupplyWear: undefined,
@@ -18,30 +19,49 @@ const BLANK: SupplyStatInput = {
   steamSales30d: undefined,
 };
 
-// Prompt to show users how to format JSON
-const JSON_PROMPT = `Skopiuj dane z Pricempire i CSFloat, a następnie wklej jako JSON do pola poniżej. Format:
+const JSON_PROMPT = `Format JSON (tablica wpisów – można mieszać kondycje i ST/Non-ST):
 
 [
   {
     "weapon": "P2000",
-    "name": "Dispatch",
+    "name": "Fire Elemental",
     "condition": "FN",
-    "globalSupplyWear": 1200,
+    "stattrak": false,
+    "globalSupplyWear": 12376,
     "marketSupplyTotal": 9661,
     "marketSupplyWear": 45,
     "marketLiquidity": 63,
     "marketActivity30d": 34,
     "steamSales30d": 904
+  },
+  {
+    "weapon": "P2000",
+    "name": "Fire Elemental",
+    "condition": "MW",
+    "stattrak": false,
+    "globalSupplyWear": 24992,
+    "marketSupplyTotal": 9661,
+    "marketSupplyWear": 120
+  },
+  {
+    "weapon": "P2000",
+    "name": "Fire Elemental",
+    "condition": "FN",
+    "stattrak": true,
+    "globalSupplyWear": 3200,
+    "marketSupplyWear": 8,
+    "marketLiquidity": 45
   }
 ]
 
-Mapowanie danych z Pricempire (Trade Statistics):
-• Total Items  → marketSupplyTotal
-• Liquidity    → marketLiquidity
-• Trades 30d   → marketActivity30d
-• Steam Last 30d Sales → steamSales30d
+Mapowanie z Pricempire (Trade Statistics):
+• Total Items     → marketSupplyTotal
+• Liquidity       → marketLiquidity
+• Trades 30d      → marketActivity30d
+• Steam Last 30d  → steamSales30d
 
-Z CSFloat (zaznacz skin i odczytaj) → globalSupplyWear`;
+Z CSFloat (zaznacz skin → ilość sztuk) → globalSupplyWear
+Pola opcjonalne można pominąć (null).`;
 
 interface SyncSupplyModalProps {
   onClose: () => void;
@@ -61,9 +81,7 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
     const r = await syncSupplyStats([form]);
     setResult(r);
     setLoading(false);
-    if (r.saved > 0) {
-      setTimeout(() => { router.refresh(); }, 1000);
-    }
+    if (r.saved > 0) setTimeout(() => { router.refresh(); }, 1000);
   };
 
   const handleJsonSubmit = async (e: React.FormEvent) => {
@@ -96,16 +114,23 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
     </div>
   );
 
+  const ResultBox = () => result ? (
+    <div className={`rounded-lg px-4 py-3 text-sm ${result.errors.length > 0 ? "bg-red-900/30 border border-red-700 text-red-300" : "bg-green-900/30 border border-green-700 text-green-300"}`}>
+      {result.saved > 0 && <p>✓ Zapisano {result.saved} wpis(ów)</p>}
+      {result.errors.map((e, i) => <p key={i}>✗ {e}</p>)}
+    </div>
+  ) : null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-white">📊 Sync Danych Podażowych</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Pricempire (Trade Stats) + CSFloat (Global Supply)</p>
+            <p className="text-xs text-gray-500 mt-0.5">Pricempire (Trade Stats) + CSFloat · obsługa ST/Non-ST</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,9 +142,7 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
         {/* Mode Switcher */}
         <div className="flex gap-1 px-6 pt-4 shrink-0">
           {(["manual", "json"] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
+            <button key={m} onClick={() => setMode(m)}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
                 mode === m
                   ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-300"
@@ -138,9 +161,7 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1">Broń</label>
-                  <input
-                    required
-                    value={form.weapon}
+                  <input required value={form.weapon}
                     onChange={e => setForm(f => ({ ...f, weapon: e.target.value }))}
                     placeholder="np. P2000"
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
@@ -148,24 +169,39 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1">Nazwa Skina</label>
-                  <input
-                    required
-                    value={form.name}
+                  <input required value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="np. Dispatch"
+                    placeholder="np. Fire Elemental"
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1">Kondycja</label>
-                  <select
-                    value={form.condition}
+                  <select value={form.condition}
                     onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
                     className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors"
                   >
                     {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+              </div>
+
+              {/* StatTrak toggle */}
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div
+                    onClick={() => setForm(f => ({ ...f, stattrak: !f.stattrak }))}
+                    className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.stattrak ? "bg-orange-500" : "bg-gray-700"}`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.stattrak ? "translate-x-5" : ""}`} />
+                  </div>
+                  <div>
+                    <span className={`text-sm font-semibold ${form.stattrak ? "text-orange-400" : "text-gray-400"}`}>
+                      {form.stattrak ? "StatTrak™" : "Non-StatTrak"}
+                    </span>
+                    <p className="text-xs text-gray-600">Dane podaży będą zapisane oddzielnie dla każdego wariantu</p>
+                  </div>
+                </label>
               </div>
 
               <div className="border border-gray-800 rounded-xl p-4 space-y-3">
@@ -187,16 +223,9 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
                 </div>
               </div>
 
-              {result && (
-                <div className={`rounded-lg px-4 py-3 text-sm ${result.errors.length > 0 ? "bg-red-900/30 border border-red-700 text-red-300" : "bg-green-900/30 border border-green-700 text-green-300"}`}>
-                  {result.saved > 0 && <p>✓ Zapisano {result.saved} wpis(ów)</p>}
-                  {result.errors.map((e, i) => <p key={i}>✗ {e}</p>)}
-                </div>
-              )}
+              <ResultBox />
 
-              <button
-                type="submit"
-                disabled={loading}
+              <button type="submit" disabled={loading}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50"
               >
                 {loading ? "Zapisuję..." : "Dodaj Wpis"}
@@ -209,26 +238,21 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1">Wklej JSON</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1">
+                  Wklej JSON <span className="font-normal text-gray-600">(tablica — możesz łączyć wiele skinów, kondycji i ST/Non-ST)</span>
+                </label>
                 <textarea
                   value={jsonText}
                   onChange={e => setJsonText(e.target.value)}
-                  rows={10}
-                  placeholder='[{ "weapon": "P2000", "name": "Dispatch", ... }]'
+                  rows={12}
+                  placeholder='[{ "weapon": "P2000", "name": "Fire Elemental", "condition": "FN", "stattrak": false, ... }]'
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-cyan-500 transition-colors resize-none"
                 />
               </div>
 
-              {result && (
-                <div className={`rounded-lg px-4 py-3 text-sm ${result.errors.length > 0 ? "bg-red-900/30 border border-red-700 text-red-300" : "bg-green-900/30 border border-green-700 text-green-300"}`}>
-                  {result.saved > 0 && <p>✓ Zapisano {result.saved} wpis(ów)</p>}
-                  {result.errors.map((e, i) => <p key={i}>✗ {e}</p>)}
-                </div>
-              )}
+              <ResultBox />
 
-              <button
-                type="submit"
-                disabled={loading || !jsonText.trim()}
+              <button type="submit" disabled={loading || !jsonText.trim()}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50"
               >
                 {loading ? "Przetwarzam..." : "Importuj z JSON"}
