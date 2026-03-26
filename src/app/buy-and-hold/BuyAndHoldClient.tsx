@@ -31,6 +31,18 @@ function computeSignals(item: any, variants: any[]) {
     }
   }
 
+  // Float Cap detection
+  const hasFloatCap = CONDITIONS.some(c => !variants.some(v => v.condition === c));
+  if (hasFloatCap && variants.length > 0) {
+    const worstConditionIndex = Math.max(...variants.map(v => CONDITIONS.indexOf(v.condition)));
+    const cappedAt = CONDITIONS[worstConditionIndex];
+    if (['FN', 'MW'].includes(cappedAt)) {
+      signalsMap.set("✨", { icon: "✨", label: "NATURALNY DEFICYT", color: "bg-yellow-600/40 text-yellow-300 border border-yellow-700/60", desc: "Skin posiada ucięty Float Cap (występuje max na poziomie " + cappedAt + ")." });
+    } else {
+      signalsMap.set("🏷️", { icon: "🏷️", label: `FLOAT CAP: ${cappedAt}`, color: "bg-gray-700/40 text-gray-300 border border-gray-600", desc: `Ten skin oryginalnie nie wypada w stanach gorszych niż ${cappedAt}.` });
+    }
+  }
+
   return Array.from(signalsMap.values());
 }
 
@@ -301,41 +313,66 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/30">
-                    {variants.sort((a, b) => CONDITIONS.indexOf(a.condition) - CONDITIONS.indexOf(b.condition)).map((v: any) => {
-                      let hoarderRatio: number | null = null;
-                      if (v.csfloat_total_registered_wear && v.empire_active_circulation_wear) {
-                        hoarderRatio = (1 - (v.empire_active_circulation_wear / v.csfloat_total_registered_wear)) * 100;
-                      }
-                      return (
-                        <tr key={`${v.condition}_${v.stattrak}`} className="hover:bg-gray-800/30 group">
-                          <td className="py-2.5">
-                            <span className={`font-bold ${v.stattrak ? 'text-orange-400' : 'text-gray-300'}`}>
-                              {v.condition} {v.stattrak && 'ST™'}
-                            </span>
-                          </td>
-                          <td className="py-2.5 text-right font-mono font-semibold text-emerald-400">{v.price ? `$${v.price}` : '-'}</td>
-                          <td className="py-2.5 text-right font-mono text-cyan-500/80">{v.csfloat_total_registered_wear?.toLocaleString() ?? '-'}</td>
-                          <td className="py-2.5 text-right font-mono text-gray-400">{v.empire_active_circulation_wear?.toLocaleString() ?? '-'}</td>
-                          <td className="py-2.5 text-right font-mono text-gray-200">{v.empire_listings_wear?.toLocaleString() ?? '-'}</td>
-                          <td className="py-2.5 text-right">
-                            {hoarderRatio != null ? (
-                              <span className={`inline-block px-1.5 py-0.5 rounded font-bold ${hoarderRatio > 80 ? 'bg-purple-900/40 text-purple-400' : 'text-gray-500'}`}>
-                                {hoarderRatio.toFixed(1)}%
+                    {(() => {
+                      const allConfigs: { condition: string; stattrak: boolean }[] = [];
+                      CONDITIONS.forEach(c => {
+                        allConfigs.push({ condition: c, stattrak: false });
+                        allConfigs.push({ condition: c, stattrak: true });
+                      });
+                      
+                      return allConfigs.map((cfg) => {
+                        const v = variants.find(x => x.condition === cfg.condition && !!x.stattrak === cfg.stattrak);
+                        
+                        if (!v) {
+                          return (
+                            <tr key={`${cfg.condition}_${cfg.stattrak}`} className="bg-gray-900/20 opacity-40">
+                              <td className="py-2.5">
+                                <span className={`font-bold ${cfg.stattrak ? 'text-orange-900/50' : 'text-gray-600'}`}>
+                                  {cfg.condition} {cfg.stattrak && 'ST™'}
+                                </span>
+                              </td>
+                              <td colSpan={8} className="py-2.5 text-center text-xs font-semibold text-gray-600 tracking-widest italic">
+                                N/A (Float Cap)
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        let hoarderRatio: number | null = null;
+                        if (v.csfloat_total_registered_wear && v.empire_active_circulation_wear) {
+                          hoarderRatio = (1 - (v.empire_active_circulation_wear / v.csfloat_total_registered_wear)) * 100;
+                        }
+                        return (
+                          <tr key={`${v.condition}_${v.stattrak}`} className="hover:bg-gray-800/30 group">
+                            <td className="py-2.5">
+                              <span className={`font-bold ${v.stattrak ? 'text-orange-400' : 'text-gray-300'}`}>
+                                {v.condition} {v.stattrak && 'ST™'}
                               </span>
-                            ) : '-'}
-                          </td>
-                          <td className="py-2.5"><LiquidityBar value={v.empire_liquidity_percent_wear} /></td>
-                          <td className="py-2.5 text-right font-mono">
-                            {v.empire_trades_30d ?? '-'} <span className="text-gray-600">({v.empire_steam_sales_30d ?? '-'})</span>
-                          </td>
-                          <td className="py-2.5 pl-4 text-right">
-                            <button onClick={(e) => openEditor(item, v, e)} title="Szybka Korekta / Snapshot" className="text-gray-600 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
+                            </td>
+                            <td className="py-2.5 text-right font-mono font-semibold text-emerald-400">{v.price ? `$${v.price.toFixed(2)}` : '-'}</td>
+                            <td className="py-2.5 text-right font-mono text-cyan-500/80">{v.csfloat_total_registered_wear?.toLocaleString() ?? '-'}</td>
+                            <td className="py-2.5 text-right font-mono text-gray-400">{v.empire_active_circulation_wear?.toLocaleString() ?? '-'}</td>
+                            <td className="py-2.5 text-right font-mono text-gray-200">{v.empire_listings_wear?.toLocaleString() ?? '-'}</td>
+                            <td className="py-2.5 text-right">
+                              {hoarderRatio != null ? (
+                                <span className={`inline-block px-1.5 py-0.5 rounded font-bold ${hoarderRatio > 80 ? 'bg-purple-900/40 text-purple-400' : 'text-gray-500'}`}>
+                                  {hoarderRatio.toFixed(1)}%
+                                </span>
+                              ) : '-'}
+                            </td>
+                            <td className="py-2.5"><LiquidityBar value={v.empire_liquidity_percent_wear} /></td>
+                            <td className="py-2.5 text-right font-mono">
+                              {v.empire_trades_30d ?? '-'} <span className="text-gray-600">({v.empire_steam_sales_30d ?? '-'})</span>
+                            </td>
+                            <td className="py-2.5 pl-4 text-right">
+                              <button onClick={(e) => openEditor(item, v, e)} title="Szybka Korekta / Snapshot" className="text-gray-600 hover:text-cyan-400 transition-colors opacity-0 group-hover:opacity-100">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>
