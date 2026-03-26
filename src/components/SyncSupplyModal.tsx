@@ -11,15 +11,16 @@ const BLANK: SupplyStatInput = {
   name: "",
   condition: "FN",
   stattrak: false,
-  globalSupplyWear: undefined,
-  marketSupplyTotal: undefined,
-  marketSupplyWear: undefined,
-  marketLiquidity: undefined,
-  marketActivity30d: undefined,
-  steamSales30d: undefined,
+  csfloat_total_registered_wear: undefined,
+  empire_active_circulation_wear: undefined,
+  empire_total_listings: undefined,
+  empire_listings_wear: undefined,
+  empire_liquidity_percent_wear: undefined,
+  empire_trades_30d: undefined,
+  empire_steam_sales_30d: undefined,
 };
 
-const JSON_PROMPT = `Format JSON (tablica wpisów – można mieszać kondycje i ST/Non-ST):
+const JSON_PROMPT = `Format JSON (wklej tablicę obiektów z Pricempire i CSFloat):
 
 [
   {
@@ -27,41 +28,25 @@ const JSON_PROMPT = `Format JSON (tablica wpisów – można mieszać kondycje i
     "name": "Fire Elemental",
     "condition": "FN",
     "stattrak": false,
-    "globalSupplyWear": 12376,
-    "marketSupplyTotal": 9661,
-    "marketSupplyWear": 45,
-    "marketLiquidity": 63,
-    "marketActivity30d": 34,
-    "steamSales30d": 904
-  },
-  {
-    "weapon": "P2000",
-    "name": "Fire Elemental",
-    "condition": "MW",
-    "stattrak": false,
-    "globalSupplyWear": 24992,
-    "marketSupplyTotal": 9661,
-    "marketSupplyWear": 120
-  },
-  {
-    "weapon": "P2000",
-    "name": "Fire Elemental",
-    "condition": "FN",
-    "stattrak": true,
-    "globalSupplyWear": 3200,
-    "marketSupplyWear": 8,
-    "marketLiquidity": 45
+    "csfloat_total_registered_wear": 12376, 
+    "empire_active_circulation_wear": 9661, 
+    "empire_total_listings": 1964,    
+    "empire_listings_wear": 150,
+    "empire_liquidity_percent_wear": 63,   
+    "empire_trades_30d": 34,         
+    "empire_steam_sales_30d": 904     
   }
 ]
 
 Mapowanie z Pricempire (Trade Statistics):
-• Total Items     → marketSupplyTotal
-• Liquidity       → marketLiquidity
-• Trades 30d      → marketActivity30d
-• Steam Last 30d  → steamSales30d
+• Total Items (widok szczegółowy) → empire_active_circulation_wear
+• Globalne oferty (wszystkie zużycia) → empire_total_listings
+• Oferty (to zużycie) → empire_listings_wear
+• Liquidity (%) → empire_liquidity_percent_wear
+• Trades 30d → empire_trades_30d
+• Steam Last 30d Sales → empire_steam_sales_30d
 
-Z CSFloat (zaznacz skin → ilość sztuk) → globalSupplyWear
-Pola opcjonalne można pominąć (null).`;
+Z CSFloat (ilość zarejestrowanych) → csfloat_total_registered_wear`;
 
 interface SyncSupplyModalProps {
   onClose: () => void;
@@ -126,11 +111,10 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-800 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-white">📊 Sync Danych Podażowych</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Pricempire (Trade Stats) + CSFloat · obsługa ST/Non-ST</p>
+            <p className="text-xs text-gray-500 mt-0.5">Precyzyjne mapowanie Pricempire / CSFloat</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1 rounded-lg hover:bg-gray-800 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +123,6 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
           </button>
         </div>
 
-        {/* Mode Switcher */}
         <div className="flex gap-1 px-6 pt-4 shrink-0">
           {(["manual", "json"] as const).map(m => (
             <button key={m} onClick={() => setMode(m)}
@@ -154,7 +137,6 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
           ))}
         </div>
 
-        {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 pb-6 pt-4">
           {mode === "manual" ? (
             <form onSubmit={handleManualSubmit} className="space-y-4">
@@ -168,7 +150,7 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Nazwa Skina</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1">Nazwa</label>
                   <input required value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="np. Fire Elemental"
@@ -186,7 +168,6 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
                 </div>
               </div>
 
-              {/* StatTrak toggle */}
               <div>
                 <label className="flex items-center gap-3 cursor-pointer group">
                   <div
@@ -195,39 +176,33 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
                   >
                     <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${form.stattrak ? "translate-x-5" : ""}`} />
                   </div>
-                  <div>
-                    <span className={`text-sm font-semibold ${form.stattrak ? "text-orange-400" : "text-gray-400"}`}>
-                      {form.stattrak ? "StatTrak™" : "Non-StatTrak"}
-                    </span>
-                    <p className="text-xs text-gray-600">Dane podaży będą zapisane oddzielnie dla każdego wariantu</p>
-                  </div>
+                  <span className={`text-sm font-semibold ${form.stattrak ? "text-orange-400" : "text-gray-400"}`}>
+                    {form.stattrak ? "StatTrak™" : "Non-StatTrak"}
+                  </span>
                 </label>
               </div>
 
               <div className="border border-gray-800 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider">🌐 Pricempire – Trade Statistics</p>
+                <p className="text-xs font-bold text-cyan-400 uppercase tracking-wider">🌐 Pricempire – Rynek</p>
                 <div className="grid grid-cols-2 gap-3">
-                  {numField("Total Items (wystawione łącznie)", "marketSupplyTotal", "Total Listed")}
-                  {numField("Wystawione (ta kondycja)", "marketSupplyWear")}
-                  {numField("Liquidity %", "marketLiquidity")}
-                  {numField("Trades 30d", "marketActivity30d")}
-                  {numField("Steam Last 30d Sales", "steamSales30d")}
+                  {numField("Total Listings", "empire_total_listings", "globalne oferty")}
+                  {numField("Listings Wear", "empire_listings_wear", "oferty to zużycie")}
+                  {numField("Active Circulation", "empire_active_circulation_wear", "Total Items")}
+                  {numField("Liquidity %", "empire_liquidity_percent_wear")}
+                  {numField("Trades 30d", "empire_trades_30d")}
+                  {numField("Steam 30d Sales", "empire_steam_sales_30d")}
                 </div>
               </div>
 
               <div className="border border-gray-800 rounded-xl p-4 space-y-3">
-                <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">🔍 CSFloat – Globalna Podaż</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {numField("Globalnie wszystkie kondycje", "globalSupplyTotal")}
-                  {numField("Globalnie ta kondycja", "globalSupplyWear")}
+                <p className="text-xs font-bold text-orange-400 uppercase tracking-wider">🔍 CSFloat – Rejestry</p>
+                <div className="grid grid-cols-1 gap-3">
+                  {numField("Total Reg. (Ten Wear)", "csfloat_total_registered_wear")}
                 </div>
               </div>
 
               <ResultBox />
-
-              <button type="submit" disabled={loading}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50">
                 {loading ? "Zapisuję..." : "Dodaj Wpis"}
               </button>
             </form>
@@ -239,22 +214,19 @@ export default function SyncSupplyModal({ onClose }: SyncSupplyModalProps) {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1">
-                  Wklej JSON <span className="font-normal text-gray-600">(tablica — możesz łączyć wiele skinów, kondycji i ST/Non-ST)</span>
+                  Wklej JSON (tablica z wymaganymi polami)
                 </label>
                 <textarea
                   value={jsonText}
                   onChange={e => setJsonText(e.target.value)}
                   rows={12}
-                  placeholder='[{ "weapon": "P2000", "name": "Fire Elemental", "condition": "FN", "stattrak": false, ... }]'
+                  placeholder='[{ "weapon": "P2000", "name": "Fire Elemental", ... }]'
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-cyan-500 transition-colors resize-none"
                 />
               </div>
 
               <ResultBox />
-
-              <button type="submit" disabled={loading || !jsonText.trim()}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading || !jsonText.trim()} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all disabled:opacity-50">
                 {loading ? "Przetwarzam..." : "Importuj z JSON"}
               </button>
             </form>

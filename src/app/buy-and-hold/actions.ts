@@ -105,14 +105,14 @@ export type SupplyStatInput = {
   weapon: string;
   name: string;
   condition: string;
-  stattrak?: boolean;
-  globalSupplyTotal?: number;
-  globalSupplyWear?: number;
-  marketSupplyTotal?: number;
-  marketSupplyWear?: number;
-  marketLiquidity?: number;
-  marketActivity30d?: number;
-  steamSales30d?: number;
+  stattrak: boolean;
+  csfloat_total_registered_wear?: number;
+  empire_active_circulation_wear?: number;
+  empire_total_listings?: number;
+  empire_listings_wear?: number;
+  empire_liquidity_percent_wear?: number;
+  empire_trades_30d?: number;
+  empire_steam_sales_30d?: number;
 };
 
 export async function syncSupplyStats(items: SupplyStatInput[]) {
@@ -121,7 +121,6 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
 
   for (const item of items) {
     try {
-      // Find skin by weapon + name
       const { data: skins } = await supabase
         .from('Skin')
         .select('id')
@@ -139,13 +138,13 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
         skinId: skins[0].id,
         condition: item.condition,
         stattrak: item.stattrak ?? false,
-        globalSupplyTotal: item.globalSupplyTotal ?? null,
-        globalSupplyWear: item.globalSupplyWear ?? null,
-        marketSupplyTotal: item.marketSupplyTotal ?? null,
-        marketSupplyWear: item.marketSupplyWear ?? null,
-        marketLiquidity: item.marketLiquidity ?? null,
-        marketActivity30d: item.marketActivity30d ?? null,
-        steamSales30d: item.steamSales30d ?? null,
+        csfloat_total_registered_wear: item.csfloat_total_registered_wear ?? null,
+        empire_active_circulation_wear: item.empire_active_circulation_wear ?? null,
+        empire_total_listings: item.empire_total_listings ?? null,
+        empire_listings_wear: item.empire_listings_wear ?? null,
+        empire_liquidity_percent_wear: item.empire_liquidity_percent_wear ?? null,
+        empire_trades_30d: item.empire_trades_30d ?? null,
+        empire_steam_sales_30d: item.empire_steam_sales_30d ?? null,
       });
 
       if (error) throw error;
@@ -158,38 +157,50 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
   return { saved, errors };
 }
 
-export async function getSupplyStats(weapon: string, condition: string) {
-  // Get latest SupplyStat per skin for this weapon + condition
+export async function toggleSkinActiveStatus(skinId: string, currentStatus: boolean) {
+  const { error } = await supabase
+    .from('Skin')
+    .update({ isActiveDrop: !currentStatus })
+    .eq('id', skinId);
+  return { success: !error };
+}
+
+export async function getSupplyStats(weapon: string) {
+  // Zwraca WSZYSTKIE najnowsze warianty dla danego skina (żeby móc zagregować globalnie)
   const { data: skins } = await supabase
     .from('Skin')
-    .select('id, name, weapon')
+    .select('id, name, weapon, isActiveDrop')
     .eq('weapon', weapon);
 
   if (!skins || skins.length === 0) return [];
-
   const skinIds = skins.map((s: any) => s.id);
 
   const { data: stats } = await supabase
     .from('SupplyStat')
     .select('*')
     .in('skinId', skinIds)
-    .eq('condition', condition)
     .order('recordedAt', { ascending: false });
 
   if (!stats) return [];
 
-  // Return only the latest stat per skin
-  const latestBySkin = new Map<string, any>();
+  // Dla każdego skina chcemy tylko najnowszy snapshot dla DANEJ PARY (condition, stattrak)
+  const latestVariants = new Map<string, any>();
   for (const s of stats) {
-    if (!latestBySkin.has(s.skinId)) {
-      latestBySkin.set(s.skinId, s);
+    const key = `${s.skinId}_${s.condition}_${s.stattrak}`;
+    if (!latestVariants.has(key)) {
+      latestVariants.set(key, s);
     }
   }
 
-  return skins.map((skin: any) => ({
-    skinId: skin.id,
-    name: skin.name,
-    ...(latestBySkin.get(skin.id) || {}),
-  }));
+  // Grupujemy warianty po skinie
+  return skins.map((skin: any) => {
+    const variants = Array.from(latestVariants.values()).filter(v => v.skinId === skin.id);
+    return {
+      skinId: skin.id,
+      name: skin.name,
+      isActiveDrop: skin.isActiveDrop,
+      variants,
+    };
+  });
 }
 
