@@ -31,7 +31,9 @@ export default function PriceParserModal({ skinItem, latestVariants, onClose }: 
   const router = useRouter();
 
   const handleParse = () => {
-    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    // Rozbijamy tekst po splitach takich jak nowa linia, znaczek >, | lub tabulacja,
+    // na wypadek gdy użytkownik wklei wielokrotne warianty w jednej długiej linijce.
+    const lines = text.split(/[>\n|\t]+/).map(l => l.trim()).filter(l => l.length > 0);
     const parsedVariants: SupplyStatInput[] = [];
     const errors: string[] = [];
 
