@@ -65,6 +65,7 @@ CREATE TABLE "SupplyStat" (
   "skinId"                          TEXT NOT NULL REFERENCES "Skin"("id") ON DELETE CASCADE,
   "condition"                       TEXT NOT NULL,
   "stattrak"                        BOOLEAN NOT NULL DEFAULT false,
+  "price"                           REAL,
   "csfloat_total_registered_wear"   INTEGER,
   "empire_active_circulation_wear"  INTEGER,
   "empire_total_listings"           INTEGER,

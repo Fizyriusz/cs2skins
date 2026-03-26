@@ -106,6 +106,8 @@ export type SupplyStatInput = {
   name: string;
   condition: string;
   stattrak: boolean;
+  price?: number;
+  recordedAt?: string;
   csfloat_total_registered_wear?: number;
   empire_active_circulation_wear?: number;
   empire_total_listings?: number;
@@ -133,11 +135,12 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
         continue;
       }
 
-      const { error } = await supabase.from('SupplyStat').insert({
+      const insertPayload: any = {
         id: crypto.randomUUID(),
         skinId: skins[0].id,
         condition: item.condition,
         stattrak: item.stattrak ?? false,
+        price: item.price ?? null,
         csfloat_total_registered_wear: item.csfloat_total_registered_wear ?? null,
         empire_active_circulation_wear: item.empire_active_circulation_wear ?? null,
         empire_total_listings: item.empire_total_listings ?? null,
@@ -145,7 +148,13 @@ export async function syncSupplyStats(items: SupplyStatInput[]) {
         empire_liquidity_percent_wear: item.empire_liquidity_percent_wear ?? null,
         empire_trades_30d: item.empire_trades_30d ?? null,
         empire_steam_sales_30d: item.empire_steam_sales_30d ?? null,
-      });
+      };
+
+      if (item.recordedAt) {
+        insertPayload.recordedAt = item.recordedAt;
+      }
+
+      const { error } = await supabase.from('SupplyStat').insert(insertPayload);
 
       if (error) throw error;
       saved++;
