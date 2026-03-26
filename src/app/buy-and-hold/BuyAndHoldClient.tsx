@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { getRarityAnalysis, getUndervaluationMatrix, getSupplyStats, toggleSkinActiveStatus, SupplyStatInput } from "./actions";
 import SyncSupplyModal from "@/components/SyncSupplyModal";
+import PriceParserModal from "@/components/PriceParserModal";
 
 const CONDITIONS = ["FN", "MW", "FT", "WW", "BS"];
 
@@ -83,6 +84,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
   // Editing & Queue
   const [compareQueue, setCompareQueue] = useState<Map<string, { item: any, variants: any[] }>>(new Map());
   const [editingVariant, setEditingVariant] = useState<SupplyStatInput | null>(null);
+  const [priceParserData, setPriceParserData] = useState<{item: any, variants: any[]} | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -270,7 +272,12 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
           <tr>
             <td colSpan={9} className="p-0 bg-gray-950/80 shadow-inner">
               <div className="border-t border-b border-gray-800/80 px-8 py-4">
-                <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Rozbicie i korekta (Edycja Inline):</h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Rozbicie i korekta (Edycja Inline):</h3>
+                  <button onClick={(e) => { e.stopPropagation(); setPriceParserData({ item, variants }); }} className="text-xs font-bold text-emerald-400 bg-emerald-900/30 hover:bg-emerald-900/50 px-3 py-1.5 rounded-lg transition-colors border border-emerald-800 flex items-center gap-1.5 shadow-lg">
+                    <span>💰</span> Szybki Import Cen z Tekstu
+                  </button>
+                </div>
                 <table className="w-full text-xs text-left">
                   <thead className="text-gray-400 border-b border-gray-800">
                     <tr>
@@ -337,6 +344,14 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
         <SyncSupplyModal 
           initialData={editingVariant} 
           onClose={() => setEditingVariant(null)} 
+        />
+      )}
+      
+      {priceParserData && (
+        <PriceParserModal
+          skinItem={priceParserData.item}
+          latestVariants={priceParserData.variants}
+          onClose={() => setPriceParserData(null)}
         />
       )}
 
