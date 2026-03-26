@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { getRarityAnalysis, getUndervaluationMatrix, getSupplyStats, toggleSkinActiveStatus } from "./actions";
 
 const CONDITIONS = ["FN", "MW", "FT", "WW", "BS"];
@@ -87,19 +87,27 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
   };
 
   const handleToggleActive = async (skinId: string, currentStatus: boolean, e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    const { success } = await toggleSkinActiveStatus(skinId, currentStatus);
-    if (success) {
-      setRarityData(prev => prev.map(s => s.id === skinId ? { ...s, isActiveDrop: !currentStatus } : s));
-      setSupplyData(prev => {
-        const p = new Map(prev);
-        const st = p.get(skinId);
-        if (st) {
-          st.isActiveDrop = !currentStatus;
-          p.set(skinId, st);
-        }
-        return p;
-      });
+    try {
+      const { success } = await toggleSkinActiveStatus(skinId, currentStatus);
+      if (success) {
+        setRarityData(prev => prev.map(s => s.id === skinId ? { ...s, isActiveDrop: !currentStatus } : s));
+        setSupplyData(prev => {
+          const p = new Map(prev);
+          const st = p.get(skinId);
+          if (st) {
+            st.isActiveDrop = !currentStatus;
+            p.set(skinId, st);
+          }
+          return p;
+        });
+      } else {
+        alert("Błąd podczas aktualizacji statusu w bazie danych.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Wystąpił nieoczekiwany błąd komunikacji z bazą.");
     }
   };
 
