@@ -44,6 +44,50 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
   const [success, setSuccess] = useState(false);
   const [existingSkins, setExistingSkins] = useState<any[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [jsonImport, setJsonImport] = useState("");
+
+  const handleJsonImport = (val: string) => {
+    setJsonImport(val);
+    try {
+      const data = JSON.parse(val);
+      if (data && typeof data === 'object') {
+        let minFloat = form.minFloat;
+        let maxFloat = form.maxFloat;
+        let sourceType = form.sourceType;
+        
+        if (data.floatRange) {
+          const parts = data.floatRange.split("-").map((p: string) => p.trim().replace(',', '.'));
+          if (parts.length === 2) {
+            minFloat = parseFloat(parts[0]).toFixed(2);
+            maxFloat = parseFloat(parts[1]).toFixed(2);
+          }
+        }
+        
+        // Zgadywanie SourceType
+        const colLower = (data.collection || "").toLowerCase();
+        if (colLower.includes("case") || colLower.includes("skrzynia")) sourceType = "Case";
+        else if (colLower.includes("armory") || colLower.includes("zbrojownia")) sourceType = "Armory";
+        else if (colLower.includes("operation") || colLower.includes("operacja")) sourceType = "Operation";
+        else sourceType = "Map"; 
+        
+        setForm(f => ({
+          ...f,
+          weapon: data.weapon || f.weapon,
+          name: data.name || f.name,
+          collection: data.collection || f.collection,
+          rarity: data.rarity || f.rarity,
+          sourceType: data.sourceType || sourceType,
+          minFloat: data.minFloat?.toString() || minFloat,
+          maxFloat: data.maxFloat?.toString() || maxFloat,
+        }));
+        
+        // Wyczyść po załadowaniu
+        setTimeout(() => setJsonImport(""), 800);
+      }
+    } catch(e) {
+      // Ignorujemy, po prostu textarea jeszcze nie ma pełnego poprawnego JSONa
+    }
+  };
 
   useEffect(() => {
     if (form.weapon.length > 1) {
@@ -134,6 +178,16 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
         </div>
 
         {/* Body */}
+        <div className="px-6 py-4 bg-cyan-950/20 border-b border-cyan-900/40">
+          <label className="block text-xs font-bold text-cyan-400 mb-2">⚡ Szybki Import AI (Opcjonalnie)</label>
+          <textarea
+            value={jsonImport}
+            onChange={e => handleJsonImport(e.target.value)}
+            placeholder='Wklej wygenerowany JSON z GPT (np. { "weapon": "Glock-18", "name": "Green Line", ... } ) żeby automatycznie uzupełnić formularz.'
+            className="w-full bg-gray-900 border border-cyan-800/50 rounded-lg px-3 py-2 text-xs text-cyan-300 placeholder-cyan-800/70 focus:outline-none focus:border-cyan-500 transition-colors resize-none h-16"
+          />
+        </div>
+
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             {field("Broń / Kategoria", "weapon", "text", "np. P2000, Knife, Sticker")}

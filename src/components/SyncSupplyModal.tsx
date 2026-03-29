@@ -30,7 +30,8 @@ const JSON_PROMPT = `Format JSON (wklej tablicę obiektów z Pricempire i CSFloa
     "name": "Fire Elemental",
     "condition": "FN",
     "stattrak": false,
-    "price": 12.50,
+    "empire_average_price": 14.33,
+    "price": undefined,
     "recordedAt": "2026-03-25T14:30:00Z",
     "csfloat_total_registered_wear": 12376, 
     "empire_active_circulation_wear": 9661, 
@@ -43,7 +44,7 @@ const JSON_PROMPT = `Format JSON (wklej tablicę obiektów z Pricempire i CSFloa
 ]
 
 Mapowanie z Pricempire:
-• Price → "price" (np. średnia cena, lub najniższa)
+• Average Price (lub Lowest) → "empire_average_price" (lub "price")
 • Total Items (Circulating) → "empire_active_circulation_wear"
 • Ofert globalnie → "empire_total_listings"
 • Oferty tutaj → "empire_listings_wear"
