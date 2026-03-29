@@ -4,8 +4,26 @@ import React, { useState, useEffect, useMemo } from "react";
 import { getRarityAnalysis, getUndervaluationMatrix, getSupplyStats, toggleSkinActiveStatus, SupplyStatInput } from "./actions";
 import SyncSupplyModal from "@/components/SyncSupplyModal";
 import PriceParserModal from "@/components/PriceParserModal";
+import EditSkinModal from "@/components/EditSkinModal";
 
 const CONDITIONS = ["FN", "MW", "FT", "WW", "BS"];
+
+const RARITY_HEX: Record<string, string> = {
+  "Consumer Grade": "#b0c3d9",
+  "Industrial Grade": "#5e98d9",
+  "Mil-Spec Grade": "#4b69ff",
+  "Restricted": "#8847ff",
+  "Classified": "#d32ce6",
+  "Covert": "#eb4b4b",
+  "Contraband": "#e4ae39",
+};
+
+const SOURCE_ICONS: Record<string, string> = {
+  "Case": "📦",
+  "Armory": "🛡️",
+  "Map": "🗺️",
+  "Operation": "🏅",
+};
 
 // ─── Signals ──────────────────────────────────────────────────────────
 function computeSignals(item: any, variants: any[]) {
@@ -47,11 +65,11 @@ function computeSignals(item: any, variants: any[]) {
 }
 
 // ─── Tooltip Header ──────────────────────────────────────────────────
-function TH({ text, popover, sortable, sortKey, currentSort, onSort }: { text: string, popover?: string, sortable?: boolean, sortKey?: string, currentSort?: { key: string, asc: boolean }, onSort?: (k: string) => void }) {
+function TH({ text, popover, sortable, sortKey, currentSort, onSort, className = "" }: { text: string, popover?: string, sortable?: boolean, sortKey?: string, currentSort?: { key: string, asc: boolean }, onSort?: (k: string) => void, className?: string }) {
   const isSorted = currentSort?.key === sortKey;
   return (
     <th 
-      className={`px-4 py-3 font-semibold ${sortable ? 'cursor-pointer hover:bg-gray-800/80 transition-colors group' : ''}`}
+      className={`px-4 py-4 font-semibold ${sortable ? 'cursor-pointer hover:bg-gray-800/80 transition-colors group' : ''} ${className}`}
       onClick={() => sortable && sortKey && onSort?.(sortKey)}
       title={popover}
     >
@@ -96,6 +114,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
   const [underValData, setUnderValData] = useState<any[]>([]);
   const [supplyData, setSupplyData] = useState<Map<string, any>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Sorting
   const [sortConf, setSortConf] = useState<{ key: string, asc: boolean }>({ key: 'price', asc: true });
@@ -105,6 +124,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
   const [compareQueue, setCompareQueue] = useState<Map<string, { item: any, variants: any[] }>>(new Map());
   const [editingVariant, setEditingVariant] = useState<SupplyStatInput | null>(null);
   const [priceParserData, setPriceParserData] = useState<{item: any, variants: any[]} | null>(null);
+  const [editSkinData, setEditSkinData] = useState<any | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -130,7 +150,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
     });
 
     return () => { active = false; };
-  }, [weapon, category, condition]);
+  }, [weapon, category, condition, reloadKey]);
 
   const toggleExpand = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -232,8 +252,8 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
 
     return (
       <React.Fragment key={item.id + (isQueue ? "_q" : "")}>
-        <tr onClick={() => toggleExpand(item.id + (isQueue ? "_q" : ""))} className={`hover:bg-gray-800/40 transition-colors cursor-pointer ${isExpanded ? 'bg-gray-800/20' : ''}`}>
-          <td className="px-4 py-3">
+        <tr onClick={() => toggleExpand(item.id + (isQueue ? "_q" : ""))} className={`hover:bg-gray-800/40 transition-colors cursor-pointer border-l-[3px] ${isExpanded ? 'bg-gray-800/20' : ''}`} style={{ borderLeftColor: RARITY_HEX[item.rarity] || 'transparent' }}>
+          <td className="px-4 py-4 min-w-[250px]">
             <div className="flex items-center gap-3">
               <button 
                 onClick={(e) => toggleCompareQueue(item, variants, e)}
@@ -247,7 +267,12 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
                   {item.weapon} | {item.name}
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                  <div className="text-[10px] text-gray-500 truncate mr-1">{item.collection}</div>
+                  <div className="text-[10px] text-gray-300 truncate mr-1 font-medium bg-gray-800 px-1.5 py-0.5 rounded border border-gray-700/50">
+                    {SOURCE_ICONS[item.sourceType] || "📦"} {item.collection}
+                  </div>
+                  {item.rarity && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-gray-900 border border-gray-700/50" style={{ color: RARITY_HEX[item.rarity] || '#9ca3af' }}>{item.rarity}</span>
+                  )}
                   {signals.map((s, i) => (
                     <span key={i} className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${s.color}`} title={s.desc}>
                       {s.icon} <span className="hidden sm:inline">{s.label}</span>
@@ -257,7 +282,7 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
               </div>
             </div>
           </td>
-          <td className="px-3 py-3 text-center" onClick={e => e.stopPropagation()}>
+          <td className="px-3 py-4 text-center" onClick={e => e.stopPropagation()}>
             <button onClick={(e) => handleToggleActive(item.id, item.isActiveDrop, e)} className="group flex flex-col mx-auto items-center p-1 rounded-lg hover:bg-gray-700/50">
               {item.isActiveDrop ? (
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"></span>
@@ -267,23 +292,30 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
               <span className="text-[9px] text-gray-500 opacity-0 group-hover:opacity-100 mt-0.5">Zmień</span>
             </button>
           </td>
-          <td className="px-4 py-3 text-right font-mono text-cyan-400 font-bold">
+          <td className="px-4 py-4 text-right font-mono text-cyan-400 font-bold hidden md:table-cell">
             {computedGlobalTotal > 0 ? computedGlobalTotal.toLocaleString() : <span className="text-gray-600 font-normal">–</span>}
           </td>
-          <td className="px-4 py-3 text-right font-mono text-gray-300">
+          <td className="px-4 py-4 text-right font-mono text-gray-300 hidden md:table-cell">
             {vNormal?.csfloat_total_registered_wear ? vNormal.csfloat_total_registered_wear.toLocaleString() : <span className="text-gray-600">–</span>}
           </td>
-          <td className="px-4 py-3 text-right font-mono text-gray-400">
+          <td className="px-4 py-4 text-right font-mono text-gray-400 hidden md:table-cell">
             {vNormal?.empire_active_circulation_wear ? vNormal.empire_active_circulation_wear.toLocaleString() : <span className="text-gray-600">–</span>}
           </td>
-          <td className="px-4 py-3 text-right font-mono text-orange-300/80">
+          <td className="px-4 py-4 text-right font-mono text-orange-300/80 hidden lg:table-cell">
             {vST?.csfloat_total_registered_wear ? vST.csfloat_total_registered_wear.toLocaleString() : <span className="text-gray-600">–</span>}
           </td>
-          <td className="px-4 py-3 text-right font-mono text-orange-400/60">
+          <td className="px-4 py-4 text-right font-mono text-orange-400/60 hidden lg:table-cell">
             {vST?.empire_active_circulation_wear ? vST.empire_active_circulation_wear.toLocaleString() : <span className="text-gray-600">–</span>}
           </td>
-          <td className="px-4 py-3 text-right font-bold text-emerald-400">
-            ${(vNormal?.price || item.price)?.toFixed(2)}
+          <td className="px-4 py-4 text-right">
+            <div className="flex justify-end items-center gap-3">
+              <span className="font-bold text-emerald-400">${(vNormal?.price || item.price)?.toFixed(2)}</span>
+              {!isQueue && (
+                <button onClick={(e) => { e.stopPropagation(); setEditSkinData(item); }} title="Edytuj Metadane Skina" className="flex items-center justify-center w-7 h-7 rounded-lg border border-gray-700 bg-gray-800 text-gray-400 hover:text-cyan-400 hover:border-cyan-500 transition-colors">
+                  ✏️
+                </button>
+              )}
+            </div>
           </td>
         </tr>
 
@@ -400,6 +432,10 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
         />
       )}
 
+      {editSkinData && (
+        <EditSkinModal skin={editSkinData} onClose={() => setEditSkinData(null)} onSuccess={() => setReloadKey(k => k + 1)} />
+      )}
+
       {/* FILTER BAR */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 md:p-6 shadow-xl flex flex-col md:flex-row md:items-center gap-6 justify-between">
         <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -458,17 +494,17 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
               Wyczyść Kolejkę
             </button>
           </div>
-          <div className="overflow-x-auto flex-1 p-0 bg-gray-950/40">
-            <table className="w-full text-sm text-left">
+          <div className="overflow-x-auto w-full flex-1 p-0 bg-gray-950/40">
+            <table className="w-full text-base text-left min-w-[700px] md:min-w-0">
               <thead className="text-[10px] text-gray-400 uppercase bg-gray-900/50">
                 <tr>
-                  <th className="px-4 py-3 font-semibold w-1/5">Skin (Porównanie)</th>
-                  <th className="px-4 py-3 font-semibold text-center w-24">Status</th>
-                  <TH text="Global Total" />
-                  <TH text={`Reg. (${condition})`} />
-                  <TH text={`Circ. (${condition})`} />
-                  <TH text={`Reg. ST™`} />
-                  <TH text={`Circ. ST™`} />
+                  <th className="px-4 py-4 font-semibold">Skin (Porównanie)</th>
+                  <th className="px-4 py-4 font-semibold text-center w-24">Status</th>
+                  <TH className="hidden md:table-cell" text="Global Total" />
+                  <TH className="hidden md:table-cell" text={`Reg. (${condition})`} />
+                  <TH className="hidden md:table-cell" text={`Circ. (${condition})`} />
+                  <TH className="hidden lg:table-cell" text={`Reg. ST™`} />
+                  <TH className="hidden lg:table-cell" text={`Circ. ST™`} />
                   <TH text={`Cena (${condition})`} />
                 </tr>
               </thead>
@@ -494,23 +530,23 @@ export default function BuyAndHoldClient({ defaultWeapons }: { defaultWeapons: s
           </p>
         </div>
 
-        <div className="overflow-x-auto flex-1 p-0">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-x-auto w-full flex-1 p-0">
+          <table className="w-full text-base text-left min-w-[700px] md:min-w-0">
             <thead className="text-[10px] text-gray-400 uppercase bg-gray-800/50">
               <tr>
-                <th className="px-4 py-3 font-semibold w-1/5">Skin</th>
-                <th className="px-4 py-3 font-semibold text-center w-24">Status</th>
-                <TH text="Global Total" popover="Suma WSZYSTKICH wariantów (FN-BS oraz ST/Normal) zarejestrowanych w publicznych plecakach według bazy CSFloat." sortable sortKey="global" currentSort={sortConf} onSort={handleSort} />
-                <TH text={`Reg. (${condition})`} popover="Podaż (Registered) wybranej u góry jakości." sortable sortKey="reg_normal" currentSort={sortConf} onSort={handleSort} />
-                <TH text={`Circ. (${condition})`} popover="Podaż czynnie krążąca po rynkach (Circulating / Total Items)." sortable sortKey="circ_normal" currentSort={sortConf} onSort={handleSort} />
-                <TH text={`Reg. ST™`} popover="Podaż (Registered) DLA WARIANTU STATTRAK." sortable sortKey="reg_st" currentSort={sortConf} onSort={handleSort} />
-                <TH text={`Circ. ST™`} popover="Podaż czynnie krążąca po rynkach DLA WARIANTU STATTRAK." sortable sortKey="circ_st" currentSort={sortConf} onSort={handleSort} />
+                <th className="px-4 py-4 font-semibold">Skin</th>
+                <th className="px-4 py-4 font-semibold text-center w-24">Status</th>
+                <TH className="hidden md:table-cell" text="Global Total" popover="Suma WSZYSTKICH wariantów (FN-BS oraz ST/Normal) zarejestrowanych w publicznych plecakach według bazy CSFloat." sortable sortKey="global" currentSort={sortConf} onSort={handleSort} />
+                <TH className="hidden md:table-cell" text={`Reg. (${condition})`} popover="Podaż (Registered) wybranej u góry jakości." sortable sortKey="reg_normal" currentSort={sortConf} onSort={handleSort} />
+                <TH className="hidden md:table-cell" text={`Circ. (${condition})`} popover="Podaż czynnie krążąca po rynkach (Circulating / Total Items)." sortable sortKey="circ_normal" currentSort={sortConf} onSort={handleSort} />
+                <TH className="hidden lg:table-cell" text={`Reg. ST™`} popover="Podaż (Registered) DLA WARIANTU STATTRAK." sortable sortKey="reg_st" currentSort={sortConf} onSort={handleSort} />
+                <TH className="hidden lg:table-cell" text={`Circ. ST™`} popover="Podaż czynnie krążąca po rynkach DLA WARIANTU STATTRAK." sortable sortKey="circ_st" currentSort={sortConf} onSort={handleSort} />
                 <TH text={`Cena (${condition})`} popover="Ostatnia zadeklarowana cena (jeśli brak przy wariancie, bierzemy z ogólnej tabeli Steamów)." sortable sortKey="price" currentSort={sortConf} onSort={handleSort} />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {sortedRarityData.length === 0 && !loading && (
-                <tr><td colSpan={9} className="text-center p-8 text-gray-500 italic">Brak danych</td></tr>
+                <tr><td colSpan={8} className="text-center p-8 text-gray-500 italic">Brak danych</td></tr>
               )}
               {sortedRarityData.map((item) => {
                 const sup = supplyData.get(item.id);

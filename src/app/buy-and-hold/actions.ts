@@ -21,9 +21,11 @@ export async function getRarityAnalysis(weapon: string, condition: string) {
   const { data: skins, error: skinsError } = await supabase
     .from('Skin')
     .select(`
-      id, name, weapon, collection, isActiveDrop, totalSupply,
-      MarketData (
-        condition, steamPrice, externalPrice, volume, timestamp
+      id, name, weapon, collection, isActiveDrop, totalSupply, rarity, sourceType,
+      SupplyStat (
+        condition, stattrak, price, empire_average_price, recordedAt,
+        csfloat_total_registered_wear, empire_active_circulation_wear,
+        empire_listings_wear, empire_liquidity_percent_wear, empire_trades_30d, empire_steam_sales_30d
       )
     `)
     .eq('weapon', weapon);
@@ -31,20 +33,22 @@ export async function getRarityAnalysis(weapon: string, condition: string) {
   if (skinsError || !skins) return [];
 
   const parsed = skins.map((skin: any) => {
-    // filter condition manually, supabase raw join might bring all
-    const market = skin.MarketData?.filter((m: any) => m.condition === condition)
-                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    // filter condition manually from SupplyStat
+    const stat = skin.SupplyStat?.filter((s: any) => s.condition === condition && !s.stattrak)
+                    .sort((a: any, b: any) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0];
     
     return {
       id: skin.id,
       name: skin.name,
       weapon: skin.weapon,
       collection: skin.collection,
+      rarity: skin.rarity,
+      sourceType: skin.sourceType,
       isActiveDrop: skin.isActiveDrop,
       totalSupply: skin.totalSupply,
-      price: market?.steamPrice || 0,
-      externalPrice: market?.externalPrice || null,
-      volume: market?.volume || 0
+      price: stat?.empire_average_price || stat?.price || 0,
+      externalPrice: null, // deprecated
+      volume: stat?.empire_steam_sales_30d || 0
     };
   });
 
@@ -56,8 +60,8 @@ export async function getUndervaluationMatrix(category: string, condition: strin
     .from('Skin')
     .select(`
       id, name, weapon,
-      MarketData (
-        condition, steamPrice, timestamp
+      SupplyStat (
+        condition, empire_average_price, price, recordedAt
       ),
       UsageStat (
         usage, createdAt
@@ -68,16 +72,19 @@ export async function getUndervaluationMatrix(category: string, condition: strin
   if (error || !skins) return [];
 
   const parsedSkins = skins.map((skin: any) => {
-    const market = skin.MarketData?.filter((m: any) => m.condition === condition)
-                    .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    const stat = skin.SupplyStat?.filter((m: any) => m.condition === condition)
+                    .sort((a: any, b: any) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())[0];
     
     const usage = skin.UsageStat?.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    // Favor empire_average_price, fallback to price
+    const finalPrice = stat?.empire_average_price || stat?.price || 0;
 
     return {
       id: skin.id,
       name: skin.name,
       weapon: skin.weapon,
-      price: market?.steamPrice || 0,
+      price: finalPrice,
       monthlyUsage: usage?.usage || 0
     };
   });
@@ -101,12 +108,41 @@ export async function getUndervaluationMatrix(category: string, condition: strin
   }).sort((a, b) => b.gap - a.gap);
 }
 
+export async function updateSkinMetadata(skinId: string, data: { rarity: string; collection: string; name: string; sourceType: string }) {
+  const { error } = await supabase
+    .from('Skin')
+    .update({ 
+      rarity: data.rarity, 
+      collection: data.collection, 
+      name: data.name,
+      sourceType: data.sourceType || 'Case'
+    })
+    .eq('id', skinId);
+  
+  if (error) {
+    console.error("Error updating skin:", error);
+    return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+
+export async function searchSkinsByWeapon(weapon: string) {
+  const { data, error } = await supabase
+    .from('Skin')
+    .select('name, condition, rarity, collection')
+    .eq('weapon', weapon)
+    .order('name');
+  if (error) return [];
+  return data;
+}
+
 export type SupplyStatInput = {
   weapon: string;
   name: string;
   condition: string;
   stattrak: boolean;
   price?: number;
+  empire_average_price?: number;
   recordedAt?: string;
   csfloat_total_registered_wear?: number;
   empire_active_circulation_wear?: number;

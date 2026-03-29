@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { upsertSkins } from "@/app/actions";
+import { searchSkinsByWeapon } from "@/app/buy-and-hold/actions";
 
 const RARITY_OPTIONS = [
   "Consumer Grade",
@@ -11,6 +12,13 @@ const RARITY_OPTIONS = [
   "Classified",
   "Covert",
   "Contraband",
+];
+
+const SOURCE_OPTIONS = [
+  "Case",
+  "Armory",
+  "Map",
+  "Operation"
 ];
 
 interface AddSkinModalProps {
@@ -24,6 +32,7 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
     name: "",
     collection: "",
     rarity: "Mil-Spec Grade",
+    sourceType: "Case",
     minFloat: "0.00",
     maxFloat: "1.00",
     isActiveDrop: true,
@@ -33,6 +42,23 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [existingSkins, setExistingSkins] = useState<any[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+
+  useEffect(() => {
+    if (form.weapon.length > 1) {
+      setLoadingExisting(true);
+      const timer = setTimeout(() => {
+        searchSkinsByWeapon(form.weapon.trim()).then(data => {
+          setExistingSkins(data);
+          setLoadingExisting(false);
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setExistingSkins([]);
+    }
+  }, [form.weapon]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +71,7 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
         name: form.name.trim(),
         collection: form.collection.trim(),
         rarity: form.rarity,
+        sourceType: form.sourceType,
         minFloat: parseFloat(form.minFloat),
         maxFloat: parseFloat(form.maxFloat),
         notes: form.notes.trim() || undefined,
@@ -115,17 +142,31 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
 
           {field("Kolekcja", "collection", "text", "np. The Train Collection")}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-400 mb-1">Rzadkość</label>
-            <select
-              value={form.rarity}
-              onChange={e => setForm(f => ({ ...f, rarity: e.target.value }))}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors"
-            >
-              {RARITY_OPTIONS.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Rzadkość</label>
+              <select
+                value={form.rarity}
+                onChange={e => setForm(f => ({ ...f, rarity: e.target.value }))}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors"
+              >
+                {RARITY_OPTIONS.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 mb-1">Typ Źródła</label>
+              <select
+                value={form.sourceType}
+                onChange={e => setForm(f => ({ ...f, sourceType: e.target.value }))}
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors"
+              >
+                {SOURCE_OPTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -143,6 +184,28 @@ export default function AddSkinModal({ onClose, onSuccess }: AddSkinModalProps) 
               className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-orange-500 transition-colors resize-none"
             />
           </div>
+
+          {/* DUPLICATE PREVENTION: Existing Skins View */}
+          {form.weapon.length > 1 && (
+            <div className="bg-gray-800/40 rounded-lg p-3 border border-gray-800">
+              <div className="text-xs text-cyan-400 font-semibold mb-2">
+                Obecnie w bazie dla: <span className="text-white">{form.weapon.trim()}</span>
+              </div>
+              {loadingExisting ? (
+                <div className="text-xs text-gray-500 animate-pulse">Szukanie w bazie...</div>
+              ) : existingSkins.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                  {existingSkins.map((s, i) => (
+                    <span key={i} className="text-[10px] bg-gray-800 text-gray-300 px-1.5 py-0.5 rounded border border-gray-700">
+                      {s.name} <span className="opacity-50">({s.collection})</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-emerald-500">Brak zarejestrowanych skinów (kategoria czysta).</div>
+              )}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-900/30 border border-red-700 rounded-lg px-4 py-3 text-sm text-red-300">

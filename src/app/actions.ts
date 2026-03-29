@@ -18,6 +18,7 @@ export type SkinUpsertItem = {
   weapon: string;
   collection: string;
   rarity: string;
+  sourceType?: string;
   minFloat: number;
   maxFloat: number;
   floatRequiredMin?: number;
@@ -109,6 +110,7 @@ export async function upsertSkins(items: SkinUpsertItem[]) {
         weapon: item.weapon,
         collection: item.collection,
         rarity: item.rarity,
+        sourceType: item.sourceType || 'Case',
         minFloat: item.minFloat,
         maxFloat: item.maxFloat,
         floatRequiredMin: item.floatRequiredMin,
